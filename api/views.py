@@ -1,197 +1,203 @@
-from random import randint
+import random
+import string
 
+from django.conf import settings
 from django.core.mail import EmailMessage
-from django.shortcuts import get_list_or_404, get_object_or_404
+from django.core.exceptions import SuspiciousOperation
+from django.db.models import Avg
+from django.db.models.query import QuerySet
+from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from django.forms.models import model_to_dict
-
-from rest_framework import filters, generics, permissions, status, viewsets
-from rest_framework.mixins import CreateModelMixin, ListModelMixin
+from rest_framework import filters, permissions, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.filters import SearchFilter
+from rest_framework.mixins import (CreateModelMixin, DestroyModelMixin,
+                                   ListModelMixin, UpdateModelMixin)
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
-from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework import permissions
-from rest_framework.mixins import UpdateModelMixin, RetrieveModelMixin, DestroyModelMixin, CreateModelMixin, ListModelMixin
-
-from .permissions import IsAuthorOrSuperUser, IsAboveUser, IsAdmin, IsHimselfOrSuperUser
-from .pages import CustomPagination
-from .models import User, Review, Comment, Title, Genre, Category
-from .serializers import ReviewSerializer, CategorySerializer, CommentSerializer, TitleSerializer, GenreSerializer, UserSerializer, TitleOutSerializer
+from rest_framework.viewsets import GenericViewSet, ModelViewSet
 from rest_framework_jwt.settings import api_settings
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-def email_confirm(request):
-    global random_code
+from api.filters import TitleFilter
+
+from .models import Category, Genre, Title, User, Comment, Review
+from .pagination import CustomPagination
+from .permissions import (IsAdmin, IsAdminOrReadOnly,
+                          IsAuthorOrReadOnly)
+from .serializers import (CategorySerializer, GenreSerializer,
+                          TitleCreateSerializer, TitleListSerializer,
+                          UserSerializer, ReviewInSerializer,
+                          ReviewOutSerializer,
+                          CommentSerializer, MyTokenObtainPairSerializer)
+
+
+class UpdateListViewSet(ListModelMixin,
+                        UpdateModelMixin, GenericViewSet):
+    pass
+
+
+def mail_confirm(request):
+    global conf_code
     global email_to
-    random_code = randint(1000, 9999)
     email_to = request.POST['email']
-    email = EmailMessage(
-        'bruv',
-        f'ya code is {random_code}',
-        'maks.pavlogradskiy.96@mail.ru',
-        email_to
-    )
-    return email.send(fail_silently=False)
+    if request.method == "POST":
+        letters = string.ascii_lowercase
+        conf_code = ''.join(random.choice(letters) for i in range(6))
+        email = EmailMessage(
+            'Conformation code',
+            f'Your conformation code for authentification is {conf_code}.',
+            'karacma@mail.ru',
+        )
+        return email.send(fail_silently=False)
 
-def get_token(request):
-    # if request.POST['confirmation_code'] == random_code:
-    email = request.POST['email']
-    if not User.objects.filter(email=email).exists():
-        if request.method == 'POST':
-            username = email.split('@')[0]
-            user = User.objects.create(username=username, email=email)
-            user.save()
-            refresh = RefreshToken.for_user(user)
-            return Response({
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-                
-            }, status=status.HTTP_200_OK)
-                    
-        
-    return Response(['this user already exists']).json()
-# return Response(['incorrect code']).json()  
 
 class UserViewSet(viewsets.ModelViewSet):
-    serializer_class = UserSerializer
+    permission_classes = [IsAdmin]
+    pagination_class = PageNumberPagination
     lookup_field = 'username'
-
-    def get_queryset(self):
-        queryset = User.objects.all()
-        return queryset
-
-    def get_permissions(self):
-        if self.action == 'create' or self.action == 'perform_create':
-            permission_classes = [IsHimselfOrSuperUser]
-        elif self.action == 'list' or self.action == 'retrieve':
-            permission_classes = [permissions.IsAuthenticated]
-
-        # elif self.action == 'list':
-        #     permission_classes = [IsAboveUser]
-        elif self.action == 'destroy' or self.action == 'update' or self.action == 'partial_update':
-            permission_classes = [permissions.IsAuthenticated]
-        else:
-            permission_classes = [IsAdmin]
-        return [permission() for permission in permission_classes]
-
-
-class MyUserViewSet(viewsets.ModelViewSet):
-    pagination_class = None
-    permission_classes = [permissions.IsAuthenticated]
     serializer_class = UserSerializer
-    def get_queryset(self):
+    queryset = User.objects.all()
 
-        return User.objects.filter(username=self.request.user.username)
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        serializer = self.get_serializer(queryset[0])
-        return Response(serializer.data)
+    @action(
+        detail=False,
+        methods=['get', 'patch'],
+        permission_classes=[permissions.IsAuthenticated]
+    )
+    def me(self, request):
+        if request.method == "PATCH":
+            serializer = self.get_serializer(
+                request.user,
+                data=request.data,
+                partial=True,
+            )
+            serializer.is_valid(raise_exception=True)
+            self.perform_update(serializer)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        elif request.method == "GET":
+            return Response(UserSerializer(request.user).data)
 
-    def partial_update(self, request, *args, **kwargs):
-        queryset = self.list()
-        serializer = UserSerializer(queryset, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
 
-        
-    # def get_permissions(self):
-    #     if self.action == 'create' or self.action == 'perform_create':
-    #         permission_classes = []
-    #     else:
-    #         permission_classes = [permissions.IsAuthenticated]
-    #     return [permission() for permission in permission_classes]
+class MyTokenObtainPairView(TokenObtainPairView):
+    def get_serializer_class(self):
+        if (
+            ("email" in self.request.data) and 
+            ("confirmation_code" in self.request.data)
+        ):
+            return MyTokenObtainPairSerializer
+        return TokenObtainPairSerializer
 
-class TitleViewSet(viewsets.ModelViewSet):
-    queryset = Title.objects.all() 
-    serializer_class = TitleSerializer
 
-    def perform_create(self, serializer):
-        category = get_object_or_404(Category, slug=self.request.POST['category'])
-        print(category.name)
-        print(category.name)
-        
-        print(category.name)
-        print(category.name)
-        # print(category.first().name)
-        # print(category.first().slug)
-        # print(category.last().name)
-        genre = self.request.POST['genre']
-        # print(genre.first())
-        # print(self.request.POST['genre'])
-        # print(Genre.objects.filter(slug=self.request.POST['genre'][0]))
-        author = self.request.user
-        serializer.save(author=author, category=category)
+class TitlesViewSet(ModelViewSet):
+    """
+    Viewset который предоставляет CRUD-действия для произведений
+    """
+    queryset = Title.objects.annotate(
+        rating=Avg('reviews__score')).order_by('id')
+    filter_backends = (DjangoFilterBackend, SearchFilter)
+    permission_classes = [IsAdminOrReadOnly]
+    filterset_class = TitleFilter
+    pagination_class = PageNumberPagination
 
-    # def list(self, request, *args, **kwargs):
-    #     queryset = self.filter_queryset(self.get_queryset())
-    #     serializer = TitleOutSerializer
-    #     # return Response(serializer.data)
+    def get_serializer_class(self):
+        if self.action in ('create', 'update', 'partial_update'):
+            return TitleCreateSerializer
+        return TitleListSerializer
 
-    #     data = self.get_queryset()
 
-    #     for item in data:
-    #         item['category '] = model_to_dict(item['category'])
+class CreateListDestroyViewSet(ListModelMixin,
+                               CreateModelMixin,
+                               DestroyModelMixin,
+                               GenericViewSet):
+    """
+    Вьюсет, обесечивающий `list()`, `create()`, `destroy()`
+    """
 
-    #         return HttpResponse(json.simplejson.dumps(data), mimetype="application/json")
+
+class CategoryViewSet(CreateListDestroyViewSet):
+    """
+    Возвращает список, создает новые и удаляет существующие категории
+    """
+    queryset = Category.objects.all().order_by('id')
+    serializer_class = CategorySerializer
+    pagination_class = PageNumberPagination
+    permission_classes = [IsAdminOrReadOnly]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name']
+    lookup_field = 'slug'
+
+
+class GenreViewSet(CreateListDestroyViewSet):
+    """
+    Возвращает список, создает новые и удаляет существующие жанры
+    """
+    queryset = Genre.objects.all().order_by('id')
+    serializer_class = GenreSerializer
+    pagination_class = PageNumberPagination
+    permission_classes = [IsAdminOrReadOnly]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name']
+    lookup_field = 'slug'
 
 
 class ReviewViewSet(viewsets.ModelViewSet):
-    serializer_class = ReviewSerializer
-    def get_queryset(self):
-        title = get_object_or_404(Title, pk=slef.kwargs.get('title_id'))
-        return title.reviews.all()
+    serializer_class = ReviewOutSerializer
+    pagination_class = PageNumberPagination
+    permission_classes = [IsAuthorOrReadOnly, ]
 
-    def get_permissions(self):
-        if self.action == 'create' or self.action == 'perform_create':
-            permission_classes = [permissions.IsAuthenticated,]
+    def perform_create(self, serializer, **kwargs):
+        title = get_object_or_404(Title, id=self.kwargs.get('title_id'))
+        if (
+            int(self.request.data['score']) > 10 
+            or int(self.request.data['score']) < 1 
+            or Review.objects.filter(title=title, author=self.request.user)
+        ):
+            raise SuspiciousOperation("smths wrong coz i said so, lmao")
         else:
-            permission_classes = [IsAuthorOrSuperUser,]
-        return [permission() for permission in permission_classes]
+            title = get_object_or_404(Title, id=self.kwargs.get('title_id'))
+            serializer.save(title=title, author=self.request.user)
 
-    def perform_create(self, serializer):
-        title = get_object_or_404(Title, pk=self.kwargs.get('title_id'))
-        serializer.save(author=self.request.user, title=title)
-
-
-class CategoryViewSet(CreateModelMixin, DestroyModelMixin, ListModelMixin, viewsets.GenericViewSet):
-    queryset = Category.objects.all()
-    serializer_class = CategorySerializer
-    filter_backends = [filters.SearchFilter]
-    search_fields = ['name',]
-    lookup_field = 'slug'
-
+    def get_queryset(self):
+        title = get_object_or_404(Title, pk=self.kwargs['title_id'])
+        return title.reviews.all()
+    
     def get_permissions(self):
         if self.action == 'list' or self.action == 'retrieve':
             permission_classes = []
-        if self.action == 'create' or self.action == 'perform_create':
-            permission_classes = [permissions.IsAuthenticated]
-        elif self.action == 'destroy' or self.action == 'delete':
-            permission_classes = [permissions.IsAuthenticated]
+        elif (self.action == 'update' or self.action == 'partial_update'
+              or self.action == 'destroy'):
+            permission_classes = [IsAuthorOrReadOnly, ]
         else:
-            permission_classes = []
+            permission_classes = [permissions.IsAuthenticated]
         return [permission() for permission in permission_classes]
 
 
 class CommentViewSet(viewsets.ModelViewSet):
     serializer_class = CommentSerializer
+    pagination_class = PageNumberPagination
+
+    def perform_create(self, serializer):
+        title = get_object_or_404(Title, pk=self.kwargs['title_id'])
+        review = get_object_or_404(
+            Review, title=title, pk=self.kwargs['review_id']
+        )    
+        serializer.save(review=review, author=self.request.user)
 
     def get_queryset(self):
-        review = get_object_or_404(Review, id=self.kwargs.get('title_id'))
+        title = get_object_or_404(Title, pk=self.kwargs['title_id'])
+        review = get_object_or_404(
+            Review, title=title, pk=self.kwargs['review_id']
+        )
         return review.comments.all()
-
-class GenresViewSet(CreateModelMixin, DestroyModelMixin, ListModelMixin, viewsets.GenericViewSet):
-    queryset = Category.objects.all()
-    serializer_class = CategorySerializer
-    filter_backends = [filters.SearchFilter]
-    search_fields = ['name',]
-    lookup_field = 'slug'
 
     def get_permissions(self):
         if self.action == 'list' or self.action == 'retrieve':
             permission_classes = []
+        elif (self.action == 'update' or self.action == 'partial_update'
+              or self.action == 'destroy'):
+            permission_classes = [IsAuthorOrReadOnly, ]
         else:
-            permission_classes = [permissions.IsAuthenticated,]
+            permission_classes = [permissions.IsAuthenticated]
         return [permission() for permission in permission_classes]
-
-
-
-
