@@ -1,11 +1,9 @@
 import random
 import string
 
-from django.conf import settings
 from django.core.mail import EmailMessage
 from django.core.exceptions import SuspiciousOperation
 from django.db.models import Avg
-from django.db.models.query import QuerySet
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, permissions, status, viewsets
@@ -14,22 +12,19 @@ from rest_framework.filters import SearchFilter
 from rest_framework.mixins import (CreateModelMixin, DestroyModelMixin,
                                    ListModelMixin, UpdateModelMixin)
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
-from rest_framework_jwt.settings import api_settings
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from api.filters import TitleFilter
 
-from .models import Category, Genre, Title, User, Comment, Review
-from .pagination import CustomPagination
+from .models import Category, Genre, Title, User, Review
 from .permissions import (IsAdmin, IsAdminOrReadOnly,
                           IsAuthorOrReadOnly)
 from .serializers import (CategorySerializer, GenreSerializer,
                           TitleCreateSerializer, TitleListSerializer,
-                          UserSerializer, ReviewInSerializer,
+                          UserSerializer,
                           ReviewOutSerializer,
                           CommentSerializer, MyTokenObtainPairSerializer)
 
