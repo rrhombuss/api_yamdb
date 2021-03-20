@@ -78,8 +78,8 @@ class UserViewSet(viewsets.ModelViewSet):
 class MyTokenObtainPairView(TokenObtainPairView):
     def get_serializer_class(self):
         if (
-            ("email" in self.request.data) and
-            ("confirmation_code" in self.request.data)
+            ("email" in self.request.data)
+            and ("confirmation_code" in self.request.data)
         ):
             return MyTokenObtainPairSerializer
         return TokenObtainPairSerializer

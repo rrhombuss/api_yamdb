@@ -3,9 +3,12 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from . import views as views
-from .views import (CategoryViewSet, CommentViewSet, GenreViewSet,
-                    MyTokenObtainPairView, ReviewViewSet,
-                    TitlesViewSet, UserViewSet)
+from .views import (
+    CategoryViewSet, CommentViewSet,
+    GenreViewSet,
+    MyTokenObtainPairView, ReviewViewSet,
+    TitlesViewSet, UserViewSet
+)
 
 router = DefaultRouter()
 router.register('users', UserViewSet, basename='users')
