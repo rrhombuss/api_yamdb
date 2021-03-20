@@ -1,22 +1,51 @@
-from rest_framework.permissions import SAFE_METHODS, BasePermission
+from rest_framework import permissions
+from rest_framework.permissions import BasePermission
 
 
-class IsAuthorOrSuperUser(BasePermission): 
-    def has_object_permission(self, request, view, obj):
-        return ( 
-            request.method in SAFE_METHODS and request.user.is_authenticated or obj.author == request.user or request.user.role in ['admin', 'moderator',]
-        ) 
+class IsAdmin(BasePermission):
+    message = 'Не хватает прав, нужны права Администратора'
 
-class IsHimselfOrSuperUser(BasePermission): 
-    def has_object_permission(self, request, view, obj):
-        return ( 
-            request.user.is_authenticated and obj.username == request.user.username or request.user.role in ['admin', 'moderator',]
-        ) 
-
-class IsAboveUser(BasePermission): 
     def has_permission(self, request, view):
-            return bool(request.user.is_authenticated and request.user.role in ['admin', 'moderator',])
+        return (request.user.is_authenticated and request.user.is_superuser 
+                or request.user.is_authenticated and request.user.role == "admin")
 
-class IsAdmin(BasePermission): 
+    def has_object_permission(self, request, view, obj):
+        if request.user.is_authenticated and obj.username == request.user.username:
+            return True
+        return (request.user.is_authenticated and request.user.is_superuser
+                or request.user.is_authenticated and request.user.role == "admin")
+
+
+class IsAdminOrReadOnly(BasePermission):
+    """
+    Редактирование объекта возможно только для Администратора.
+    Для чтения доступно всем.
+    """
+    message = 'Не хватает прав, нужны права Администратора'
+
     def has_permission(self, request, view):
-            return bool(request.user.is_authenticated and request.user.role in ['admin',])
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        return (
+            request.user.is_authenticated and request.user.is_superuser 
+            or request.user.is_authenticated and request.user.role == "admin"
+        )
+    
+    def has_object_permission(self, request, view, obj):
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        return (
+            request.user.is_authenticated and request.user.is_superuser 
+            or request.user.is_authenticated and request.user.role == "admin"
+        )
+
+
+class IsAuthorOrReadOnly(permissions.BasePermission): 
+    def has_object_permission(self, request, view, obj):
+        if request.user.is_authenticated and request.user.role == "moderator":
+            return True
+        if request.method == 'PATCH' or request.method == 'DELETE':
+            if obj.author == request.user:
+                return True
+        if request.user.is_authenticated and request.user.is_superuser:
+            return True

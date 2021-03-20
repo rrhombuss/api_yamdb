@@ -17,13 +17,7 @@ from .pages import CustomPagination
 from .models import User, Review, Comment, Title, Genre, Category
 from .serializers import ReviewSerializer, CategorySerializer, CommentSerializer, TitleSerializer, GenreSerializer, UserSerializer, TitleOutSerializer
 from rest_framework_jwt.settings import api_settings
-
-jwt_payload_handler = api_settings.JWT_PAYLOAD_HANDLER
-
-jwt_encode_handler = api_settings.JWT_ENCODE_HANDLER
-
-
-
+from rest_framework_simplejwt.tokens import RefreshToken
 
 def email_confirm(request):
     global random_code
@@ -40,30 +34,30 @@ def email_confirm(request):
 
 def get_token(request):
     # if request.POST['confirmation_code'] == random_code:
-    #     email = request.POST['email']
+    email = request.POST['email']
     if not User.objects.filter(email=email).exists():
         if request.method == 'POST':
             username = email.split('@')[0]
             user = User.objects.create(username=username, email=email)
             user.save()
-            jwt_payload_handler = api_settings.JWT_PAYLOAD_HANDLER
-            jwt_encode_handler = api_settings.JWT_ENCODE_HANDLER
-
-            payload = jwt_payload_handler(request.user)
-            token = jwt_encode_handler(payload)
-            return HttpResponse('Get token auth request and data is as: {}'.format(token))
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+                
+            }, status=status.HTTP_200_OK)
+                    
+        
     return Response(['this user already exists']).json()
 # return Response(['incorrect code']).json()  
 
 class UserViewSet(viewsets.ModelViewSet):
-
     serializer_class = UserSerializer
     lookup_field = 'username'
 
     def get_queryset(self):
         queryset = User.objects.all()
         return queryset
-
 
     def get_permissions(self):
         if self.action == 'create' or self.action == 'perform_create':
@@ -85,8 +79,8 @@ class MyUserViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = UserSerializer
     def get_queryset(self):
-    
-    return User.objects.filter(username=self.request.user.username)
+
+        return User.objects.filter(username=self.request.user.username)
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         serializer = self.get_serializer(queryset[0])
@@ -107,7 +101,7 @@ class MyUserViewSet(viewsets.ModelViewSet):
     #     return [permission() for permission in permission_classes]
 
 class TitleViewSet(viewsets.ModelViewSet):
-    queryset = Title.objects.all()
+    queryset = Title.objects.all() 
     serializer_class = TitleSerializer
 
     def perform_create(self, serializer):
@@ -127,17 +121,17 @@ class TitleViewSet(viewsets.ModelViewSet):
         author = self.request.user
         serializer.save(author=author, category=category)
 
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        serializer = TitleOutSerializer
-        return Response(serializer.data)
+    # def list(self, request, *args, **kwargs):
+    #     queryset = self.filter_queryset(self.get_queryset())
+    #     serializer = TitleOutSerializer
+    #     # return Response(serializer.data)
 
-        data = self.get_queryset()
+    #     data = self.get_queryset()
 
-        for item in data:
-            item['category '] = model_to_dict(item['product'])
+    #     for item in data:
+    #         item['category '] = model_to_dict(item['category'])
 
-            return HttpResponse(json.simplejson.dumps(data), mimetype="application/json")
+    #         return HttpResponse(json.simplejson.dumps(data), mimetype="application/json")
 
 
 class ReviewViewSet(viewsets.ModelViewSet):
