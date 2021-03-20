@@ -83,7 +83,7 @@ class UserViewSet(viewsets.ModelViewSet):
 class MyTokenObtainPairView(TokenObtainPairView):
     def get_serializer_class(self):
         if (
-            ("email" in self.request.data) and 
+            ("email" in self.request.data) and
             ("confirmation_code" in self.request.data)
         ):
             return MyTokenObtainPairSerializer
@@ -150,8 +150,8 @@ class ReviewViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer, **kwargs):
         title = get_object_or_404(Title, id=self.kwargs.get('title_id'))
         if (
-            int(self.request.data['score']) > 10 
-            or int(self.request.data['score']) < 1 
+            int(self.request.data['score']) > 10
+            or int(self.request.data['score']) < 1
             or Review.objects.filter(title=title, author=self.request.user)
         ):
             raise SuspiciousOperation("smths wrong coz i said so, lmao")
@@ -162,7 +162,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         title = get_object_or_404(Title, pk=self.kwargs['title_id'])
         return title.reviews.all()
-    
+
     def get_permissions(self):
         if self.action == 'list' or self.action == 'retrieve':
             permission_classes = []
@@ -182,7 +182,7 @@ class CommentViewSet(viewsets.ModelViewSet):
         title = get_object_or_404(Title, pk=self.kwargs['title_id'])
         review = get_object_or_404(
             Review, title=title, pk=self.kwargs['review_id']
-        )    
+        )
         serializer.save(review=review, author=self.request.user)
 
     def get_queryset(self):

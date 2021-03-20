@@ -4,13 +4,13 @@ from django.db import models
 
 
 class User(AbstractUser):
- 
+
     USER_ROLE = (
         ('user', 'user'),
         ('moderator', 'moderator'),
         ('admin', 'admin'),
     )
- 
+
     role = models.CharField(max_length=9, choices=USER_ROLE, default='user')
     email = models.EmailField('email address', unique=True)
     bio = models.TextField(max_length=300, blank=True, null=True)
@@ -65,7 +65,7 @@ class Title(models.Model):
     category = models.ForeignKey(Category, on_delete=models.SET_NULL,
                                  null=True, related_name="titles", blank=True)
     REQUIRED_FIELDS = []
-    
+
     class Meta:
         verbose_name = 'Произведение'
         verbose_name_plural = 'Произведения'
@@ -74,7 +74,8 @@ class Title(models.Model):
 class Review(models.Model):
     text = models.TextField()
     author = models.ForeignKey(settings.AUTH_USER_MODEL,
-                               on_delete=models.CASCADE, related_name='reviews')
+                               on_delete=models.CASCADE,
+                               related_name='reviews')
     title = models.ForeignKey(Title, on_delete=models.CASCADE,
                               related_name='reviews', null=True, blank=True)
     score = models.IntegerField()
@@ -84,7 +85,8 @@ class Review(models.Model):
 class Comment(models.Model):
     text = models.TextField()
     author = models.ForeignKey(settings.AUTH_USER_MODEL,
-                               on_delete=models.CASCADE, related_name='comments')
+                               on_delete=models.CASCADE,
+                               related_name='comments')
     pub_date = models.DateTimeField(auto_now_add=True)
-    review = models.ForeignKey(Review, on_delete=models.CASCADE, 
+    review = models.ForeignKey(Review, on_delete=models.CASCADE,
                                related_name="comments")

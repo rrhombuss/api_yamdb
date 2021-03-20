@@ -76,7 +76,7 @@ class TitleCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         fields = ('__all__')
-        model = Title 
+        model = Title
 
 
 class ReviewInSerializer(serializers.ModelSerializer):

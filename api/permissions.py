@@ -6,14 +6,19 @@ class IsAdmin(BasePermission):
     message = 'Не хватает прав, нужны права Администратора'
 
     def has_permission(self, request, view):
-        return (request.user.is_authenticated and request.user.is_superuser 
-                or request.user.is_authenticated and request.user.role == "admin")
+        return (request.user.is_authenticated and request.user.is_superuser
+                or request.user.is_authenticated
+                and request.user.role == "admin")
 
     def has_object_permission(self, request, view, obj):
-        if request.user.is_authenticated and obj.username == request.user.username:
+        if (
+            request.user.is_authenticated
+            and obj.username == request.user.username
+        ):
             return True
         return (request.user.is_authenticated and request.user.is_superuser
-                or request.user.is_authenticated and request.user.role == "admin")
+                or request.user.is_authenticated
+                and request.user.role == "admin")
 
 
 class IsAdminOrReadOnly(BasePermission):
@@ -27,20 +32,20 @@ class IsAdminOrReadOnly(BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return True
         return (
-            request.user.is_authenticated and request.user.is_superuser 
+            request.user.is_authenticated and request.user.is_superuser
             or request.user.is_authenticated and request.user.role == "admin"
         )
-    
+
     def has_object_permission(self, request, view, obj):
         if request.method in permissions.SAFE_METHODS:
             return True
         return (
-            request.user.is_authenticated and request.user.is_superuser 
+            request.user.is_authenticated and request.user.is_superuser
             or request.user.is_authenticated and request.user.role == "admin"
         )
 
 
-class IsAuthorOrReadOnly(permissions.BasePermission): 
+class IsAuthorOrReadOnly(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.user.is_authenticated and request.user.role == "moderator":
             return True
