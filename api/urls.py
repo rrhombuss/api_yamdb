@@ -12,9 +12,9 @@ from .views import (
 
 router = DefaultRouter()
 router.register('users', UserViewSet, basename='users')
-router.register("titles", TitlesViewSet, basename='Title')
-router.register("genres", GenreViewSet, basename='Genre')
-router.register("categories", CategoryViewSet, basename='Category')
+router.register('titles', TitlesViewSet, basename='Title')
+router.register('genres', GenreViewSet, basename='Genre')
+router.register('categories', CategoryViewSet, basename='Category')
 router.register(r'titles/(?P<title_id>\d+)/reviews', ReviewViewSet,
                 basename='Review')
 router.register(
@@ -34,6 +34,6 @@ urlpatterns += [
         MyTokenObtainPairView.as_view(),
         name='token_obtain_pair'
     ),
-    path("v1/token/refresh/", TokenRefreshView.as_view(),
-         name="token_refresh"),
+    path('v1/token/refresh/', TokenRefreshView.as_view(),
+         name='token_refresh'),
 ]

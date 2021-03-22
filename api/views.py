@@ -1,6 +1,4 @@
-import random
-import string
-
+from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import EmailMessage
 from django.core.exceptions import SuspiciousOperation
 from django.db.models import Avg
@@ -35,16 +33,14 @@ class UpdateListViewSet(ListModelMixin,
 
 
 def mail_confirm(request):
-    global conf_code
-    global email_to
     email_to = request.POST['email']
-    if request.method == "POST":
-        letters = string.ascii_lowercase
-        conf_code = ''.join(random.choice(letters) for i in range(6))
+    if request.method == 'POST':
+        user = User.objects.create(email=email_to, password=email_to)
+        conf_code = default_token_generator._make_hash_value(user, 300)
         email = EmailMessage(
             'Conformation code',
             f'Your conformation code for authentification is {conf_code}.',
-            'karacma@mail.ru',
+            email_to,
         )
         return email.send(fail_silently=False)
 
@@ -62,7 +58,7 @@ class UserViewSet(viewsets.ModelViewSet):
         permission_classes=[permissions.IsAuthenticated]
     )
     def me(self, request):
-        if request.method == "PATCH":
+        if request.method == 'PATCH':
             serializer = self.get_serializer(
                 request.user,
                 data=request.data,
@@ -71,15 +67,15 @@ class UserViewSet(viewsets.ModelViewSet):
             serializer.is_valid(raise_exception=True)
             self.perform_update(serializer)
             return Response(serializer.data, status=status.HTTP_200_OK)
-        elif request.method == "GET":
+        elif request.method == 'GET':
             return Response(UserSerializer(request.user).data)
 
 
 class MyTokenObtainPairView(TokenObtainPairView):
     def get_serializer_class(self):
         if (
-            ("email" in self.request.data)
-            and ("confirmation_code" in self.request.data)
+            ('email' in self.request.data)
+            and ('confirmation_code' in self.request.data)
         ):
             return MyTokenObtainPairSerializer
         return TokenObtainPairSerializer
@@ -176,14 +172,16 @@ class CommentViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         title = get_object_or_404(Title, pk=self.kwargs['title_id'])
         review = get_object_or_404(
-            Review, title=title, pk=self.kwargs['review_id']
+            Review, title=title, pk=self.kwargs['review_id'],
+            title__id=self.kwargs['title_id']
         )
         serializer.save(review=review, author=self.request.user)
 
     def get_queryset(self):
         title = get_object_or_404(Title, pk=self.kwargs['title_id'])
         review = get_object_or_404(
-            Review, title=title, pk=self.kwargs['review_id']
+            Review, title=title, pk=self.kwargs['review_id'],
+            title__id=self.kwargs['title_id']
         )
         return review.comments.all()
 

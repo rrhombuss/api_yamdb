@@ -6,9 +6,10 @@ class IsAdmin(BasePermission):
     message = 'Не хватает прав, нужны права Администратора'
 
     def has_permission(self, request, view):
-        return (request.user.is_authenticated and request.user.is_superuser
-                or request.user.is_authenticated
-                and request.user.role == "admin")
+        return (
+            (request.user.is_authenticated and request.user.is_superuser)
+            or (request.user.is_authenticated and request.user.role == 'admin')
+        )
 
     def has_object_permission(self, request, view, obj):
         if (
@@ -18,7 +19,7 @@ class IsAdmin(BasePermission):
             return True
         return (request.user.is_authenticated and request.user.is_superuser
                 or request.user.is_authenticated
-                and request.user.role == "admin")
+                and request.user.role == 'admin')
 
 
 class IsAdminOrReadOnly(BasePermission):
@@ -33,7 +34,7 @@ class IsAdminOrReadOnly(BasePermission):
             return True
         return (
             request.user.is_authenticated and request.user.is_superuser
-            or request.user.is_authenticated and request.user.role == "admin"
+            or request.user.is_authenticated and request.user.role == 'admin'
         )
 
     def has_object_permission(self, request, view, obj):
@@ -41,13 +42,13 @@ class IsAdminOrReadOnly(BasePermission):
             return True
         return (
             request.user.is_authenticated and request.user.is_superuser
-            or request.user.is_authenticated and request.user.role == "admin"
+            or request.user.is_authenticated and request.user.role == 'admin'
         )
 
 
 class IsAuthorOrReadOnly(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
-        if request.user.is_authenticated and request.user.role == "moderator":
+        if request.user.is_authenticated and request.user.role == 'moderator':
             return True
         if request.method == 'PATCH' or request.method == 'DELETE':
             if obj.author == request.user:
