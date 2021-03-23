@@ -20,11 +20,13 @@ class User(AbstractUser):
         default=Roles.USER,
     )
 
+    @property
     def is_admin(self):
         return self.role in {
             self.Roles.ADMIN,
         }
 
+    @property
     def is_moderator(self):
         return self.role in {
             self.Roles.MODERATOR,
@@ -42,7 +44,7 @@ class Genre(models.Model):
     Жанры произведений.
     Одно произведение может быть привязано к нескольким жанрам.
     """
-    name = models.CharField(max_length=200, verbose_name="Жанр", unique=True)
+    name = models.CharField(max_length=200, verbose_name='Жанр', unique=True)
     slug = models.SlugField(max_length=50, unique=True)
 
     class Meta:
@@ -58,7 +60,7 @@ class Category(models.Model):
     Категории (типы) произведений («Фильмы», «Книги», «Музыка»).
     """
     name = models.CharField(
-        max_length=200, verbose_name="Категория", unique=True
+        max_length=200, verbose_name='Категория', unique=True
     )
     slug = models.SlugField(max_length=50, unique=True)
 
@@ -78,18 +80,19 @@ class Title(models.Model):
     name = models.CharField(max_length=200, verbose_name='Произведение')
     year = models.IntegerField(
         validators=[MaxValueValidator(int(datetime.today().year)), ],
-        null=True, verbose_name="Год издания", db_index=True
+        null=True, verbose_name='Год издания', db_index=True
     )
     description = models.CharField(max_length=200, null=True)
-    genre = models.ManyToManyField(Genre, blank=True, related_name="titles",
+    genre = models.ManyToManyField(Genre, blank=True, related_name='titles',
                                    null=True)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL,
-                                 null=True, related_name="titles", blank=True)
+                                 null=True, related_name='titles', blank=True)
     REQUIRED_FIELDS = []
 
     class Meta:
         verbose_name = 'Произведение'
         verbose_name_plural = 'Произведения'
+        ordering = ['id']
 
 
 class Review(models.Model):
@@ -113,7 +116,7 @@ class Comment(models.Model):
                                related_name='comments')
     pub_date = models.DateTimeField(auto_now_add=True)
     review = models.ForeignKey(Review, on_delete=models.CASCADE,
-                               related_name="comments")
+                               related_name='comments')
 
     class Meta:
         verbose_name = 'Комментарий'

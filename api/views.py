@@ -35,7 +35,7 @@ class UpdateListViewSet(ListModelMixin,
 def mail_confirm(request):
     email_to = request.POST['email']
     if request.method == 'POST':
-        user = User.objects.create(email=email_to, password=email_to)
+        user = User.objects.get_or_create(email=email_to, password=email_to)
         conf_code = default_token_generator._make_hash_value(user, 300)
         email = EmailMessage(
             'Conformation code',
@@ -86,7 +86,7 @@ class TitlesViewSet(ModelViewSet):
     Viewset который предоставляет CRUD-действия для произведений
     """
     queryset = Title.objects.annotate(
-        rating=Avg('reviews__score')).order_by('id')
+        rating=Avg('reviews__score'))
     filter_backends = (DjangoFilterBackend, SearchFilter)
     permission_classes = [IsAdminOrReadOnly]
     filterset_class = TitleFilter
@@ -170,7 +170,7 @@ class CommentViewSet(viewsets.ModelViewSet):
     pagination_class = PageNumberPagination
 
     def perform_create(self, serializer):
-        title = get_object_or_404(Title, pk=self.kwargs['title_id'])
+        title = get_object_or_404(Title, pk=self.kwargs.get('title_id'))
         review = get_object_or_404(
             Review, title=title, pk=self.kwargs['review_id'],
             title__id=self.kwargs['title_id']
