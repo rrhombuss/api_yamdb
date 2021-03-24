@@ -111,7 +111,7 @@ class CategoryViewSet(CreateListDestroyViewSet):
     """
     Возвращает список, создает новые и удаляет существующие категории
     """
-    queryset = Category.objects.all().order_by('id')
+    queryset = Category.objects.all()
     serializer_class = CategorySerializer
     pagination_class = PageNumberPagination
     permission_classes = [IsAdminOrReadOnly]
@@ -124,7 +124,7 @@ class GenreViewSet(CreateListDestroyViewSet):
     """
     Возвращает список, создает новые и удаляет существующие жанры
     """
-    queryset = Genre.objects.all().order_by('id')
+    queryset = Genre.objects.all()
     serializer_class = GenreSerializer
     pagination_class = PageNumberPagination
     permission_classes = [IsAdminOrReadOnly]
